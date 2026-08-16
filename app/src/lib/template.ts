@@ -1,0 +1,80 @@
+/**
+ * Template parsing. No React, no DOM — plain functions, unit-testable alone.
+ *
+ * Everything works off the *live* template string; nothing is cached against a
+ * previously-detected variable list. The spec calls that stale-list bug the
+ * single most damaging defect in the reference implementation, so detection,
+ * generation and extraction all re-parse from source every time.
+ */
+
+/** Matches a bracketed token containing no nested brackets. */
+export const VARIABLE_PATTERN = /\[([^[\]]*)\]/g;
+
+export type TemplateToken =
+  | { kind: 'literal'; text: string }
+  | { kind: 'variable'; name: string };
+
+/**
+ * Splits a template into an alternating run of literals and variable slots.
+ * Empty or whitespace-only brackets (`[ ]`) are not variables; they stay in the
+ * literal text exactly as written.
+ */
+export function tokenizeTemplate(template: string): TemplateToken[] {
+  const tokens: TemplateToken[] = [];
+  let cursor = 0;
+
+  for (const m of template.matchAll(VARIABLE_PATTERN)) {
+    const name = m[1].trim();
+    if (!name) continue; // `[ ]` is literal text, not a slot
+    const start = m.index!;
+    if (start > cursor) {
+      tokens.push({ kind: 'literal', text: template.slice(cursor, start) });
+    }
+    tokens.push({ kind: 'variable', name });
+    cursor = start + m[0].length;
+  }
+
+  if (cursor < template.length) {
+    tokens.push({ kind: 'literal', text: template.slice(cursor) });
+  }
+  return tokens;
+}
+
+/**
+ * Ordered, de-duplicated variable names.
+ *
+ * Case-sensitive: `[Subject]` and `[SUBJECT]` are different variables.
+ * Whitespace inside brackets is trimmed, so `[ SUBJECT ]` is `SUBJECT`.
+ */
+export function detectVariables(template: string): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const m of template.matchAll(VARIABLE_PATTERN)) {
+    const name = m[1].trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    ordered.push(name);
+  }
+  return ordered;
+}
+
+/**
+ * True when two variable slots touch with no literal text between them
+ * (`[FIRST][LAST]`). There is no way to know where one value ends and the next
+ * begins, so we never silently guess — extraction attributes the run to the
+ * first variable and flags the result as ambiguous.
+ */
+export function hasAdjacentVariables(template: string): boolean {
+  const tokens = tokenizeTemplate(template);
+  return tokens.some(
+    (t, i) => t.kind === 'variable' && tokens[i + 1]?.kind === 'variable',
+  );
+}
+
+/** Splits a multi-line value field into candidate values, dropping blank lines. */
+export function parseValueLines(raw: string): string[] {
+  return raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+}

@@ -1,0 +1,227 @@
+@import 'tailwindcss';
+
+/* ══════════════════════════════════════════════════════════════════════
+   Bulk Prompts — "Chalk Blocks" design tokens
+
+   Every surface is a block with a visible 2px ink edge and a hard offset
+   shadow — no blur, no gradient. That single rule is what makes the app
+   readable at a glance: if it has an edge and a shadow, you can press it.
+
+   Contrast rules the audit forced, and the reason each colour exists twice:
+     · --color-violet (#5B3DF5) is 6.1:1 on paper and carries white text at
+       6.1:1 — safe both as a fill and as text on light grounds.
+     · --color-violet-wash is a *background* only; text on it must be
+       --color-violet-ink (8.4:1), never plain violet (1.4:1 on wash).
+     · --color-butter and --color-mint are backgrounds only. They take ink
+       text (13.6:1 and 15:1); nothing else is legible on them.
+     · --color-alert is an edge/fill colour; small text on alert-wash must be
+       --color-alert-ink (6.0:1).
+     · --color-grey is the floor for muted text: 4.9:1 on paper, 4.7:1 on
+       bone. Anything lighter fails on the page ground.
+   ══════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* grounds */
+  --color-bone: #fffcf3; /* the page */
+  --color-paper: #ffffff; /* card surfaces */
+  --color-sunk: #faf8f1; /* inset fields inside a card */
+
+  /* ink + neutrals */
+  --color-ink: #121212; /* every border, and primary text */
+  --color-ink-2: #3d3b35; /* secondary text */
+  --color-grey: #75716a; /* muted text — do not go lighter */
+  --color-hair: #dcd8cd; /* soft rules inside a block */
+
+  /* accent */
+  --color-violet: #5b3df5;
+  --color-violet-deep: #4a2fde; /* hover */
+  --color-violet-wash: #ede9fe; /* background only */
+  --color-violet-ink: #3a22b8; /* text on wash */
+
+  /* signal — background-only, ink text */
+  --color-butter: #ffd84b;
+  --color-mint: #b4f0d3;
+  --color-mint-wash: #f2fdf7;
+  --color-mint-ink: #14603f;
+
+  /* semantic, kept separate from the accent */
+  --color-alert: #ff5c38;
+  --color-alert-wash: #ffede6;
+  --color-alert-ink: #a8330f;
+
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+
+  --radius-card: 14px;
+  --radius-block: 11px;
+  --radius-ctl: 9px;
+  --radius-key: 8px;
+}
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/fonts/Bricolage.ttf') format('truetype');
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono.ttf') format('truetype');
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bone);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Focus is never removed — only restyled to suit the ground it sits on.
+   Violet is the default ring; anything violet-filled asks for the ink ring
+   instead via .focus-ink, since violet-on-violet is invisible. */
+:focus-visible {
+  outline: 3px solid var(--color-violet);
+  outline-offset: 2px;
+}
+.focus-ink:focus-visible {
+  outline-color: var(--color-ink);
+}
+
+/*
+  Solid, not translucent — a wash here mixes with whatever's underneath
+  rather than replacing it, and violet at low alpha over the template
+  editor's butter ground doesn't stay violet: it mixes toward a muddy brown,
+  nothing like the confident, solid colour this accent is everywhere else.
+*/
+::selection {
+  background: var(--color-violet);
+  color: #fff;
+}
+
+/*
+  TemplateEditor stacks a real (fully transparent-text) textarea over a
+  mirror div that paints the visible characters and token fills underneath
+  it. Native selection paints on that top textarea layer, and it's uniform —
+  a browser can't vary ::selection per character — so a [VARIABLE] caught
+  inside a selection used to lose its violet fill entirely and read as
+  plain text, indistinguishable from the sentence around it. This rule
+  turns the textarea's own selection fully invisible so renderTokens can
+  paint the selection itself, per character, into the mirror instead —
+  giving a selected token a white ring so it still reads as "this one's a
+  variable" even mid-selection, which no uniform browser selection could do.
+*/
+.template-input::selection {
+  background: transparent;
+  color: transparent;
+}
+
+/* ── the block language ───────────────────────────────────────────────
+   Shadows live in these classes rather than in inline styles so `.press`
+   can flatten them on click; an inline box-shadow would outrank it and the
+   press would look broken. */
+.hard-sm {
+  box-shadow: 3px 3px 0 var(--color-ink);
+}
+.hard-md {
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+.hard-lg {
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+.hard-down {
+  box-shadow: 0 4px 0 var(--color-ink);
+}
+
+.press {
+  transition:
+    transform 90ms ease,
+    box-shadow 90ms ease,
+    background-color 120ms ease;
+}
+.press:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-ink);
+}
+.hard-down.press:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--color-ink);
+}
+
+/* The tracked micro-label used for captions and section heads. */
+.label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+/* Inset fields: textareas and inputs inside a card. */
+.field {
+  background: var(--color-sunk);
+  border: 2px solid var(--color-hair);
+  border-radius: var(--radius-ctl);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  outline: none;
+  width: 100%;
+}
+.field:focus {
+  border-color: var(--color-violet);
+}
+.field::placeholder {
+  color: #a9a49a;
+}
+
+/* Scrollbars — visible, but not a second border. Applied to the document
+   root as well as inner panels, so the outer window scroll matches instead
+   of falling back to the OS's own (in the Tauri shell, a very un-Chalk-
+   Blocks chunky arrowed one). */
+.scroll-soft,
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hair) transparent;
+}
+.scroll-soft::-webkit-scrollbar,
+html::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll-soft::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+  background: var(--color-hair);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 99px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* transition-property defaults to `all`, so a merely-tiny nonzero duration
+     (the more common version of this rule) still leaves every property
+     change running a real, if brief, transition — `none` actually removes it. */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
