@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "1.0.0"
 description = "Bulk Prompts, a template-based prompt generator and extractor"
 authors = ["Umair Aamir"]
 license = "MIT"

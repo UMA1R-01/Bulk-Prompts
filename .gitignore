@@ -44,3 +44,7 @@ Desktop.ini
 
 # Local Claude Code harness config (machine-specific, not app source)
 .claude/
+
+# Build-process docs, not meant for the public repo
+CLAUDE.md
+SPEC.md

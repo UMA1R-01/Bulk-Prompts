@@ -1,11 +1,8 @@
 # Bulk Prompts
 
-Two text tools in one desktop app, for anyone who writes the same prompt shape over and over with different values.
+[![Latest release](https://img.shields.io/github/v/release/UMA1R-01/Bulk-Prompts?color=5B3DF5)](https://github.com/UMA1R-01/Bulk-Prompts/releases/latest) [![License: MIT](https://img.shields.io/github/license/UMA1R-01/Bulk-Prompts?color=5B3DF5)](LICENSE)
 
-- **Generate**: one template with `[VARIABLE]` placeholders plus a list of values per variable, turned into many finished prompts.
-- **Extract**: the inverse. Give it the template and a batch of already-written prompts, and it recovers the values that produced them.
-
-No accounts, no server, no model calls. Every field persists to local storage automatically, with no Save step. See [SPEC.md](SPEC.md) for the full functional spec this app implements.
+Bulk Prompts is a template-based prompt generator and extractor that runs entirely on your machine, as a desktop app or in the browser. Write one template with `[VARIABLE]` placeholders, drop in a list of values per variable, and generate every combination as a finished prompt, or run the process backward to recover the values from prompts you already wrote. No account, no server, no AI calls: it is all deterministic string work, and every field persists locally with no Save button.
 
 [![Leave a tip](https://img.shields.io/badge/%E2%98%95-Leave_a_tip-ff69b4?style=for-the-badge)](#-leave-a-tip)
 
@@ -13,26 +10,68 @@ No accounts, no server, no model calls. Every field persists to local storage au
 
 **[Download the latest Windows installer →](https://github.com/UMA1R-01/Bulk-Prompts/releases/latest)**
 
-Grab `Bulk.Prompts_x.y.z_x64-setup.exe` from the release assets and run it (GitHub replaces the spaces in the filename with dots). It installs to `%LOCALAPPDATA%\Programs\Bulk Prompts` with a Start Menu shortcut, and registers an uninstaller under Windows' Add/Remove Programs. It relies on the WebView2 runtime, which already ships with Windows 10 and 11; on a machine without it, the installer offers to fetch it.
+Grab `Bulk.Prompts_x.y.z_x64-setup.exe` from the release assets and run it (GitHub replaces the spaces in the filename with dots). It installs to `%LOCALAPPDATA%\Programs\Bulk Prompts` with a Start Menu shortcut, and registers an uninstaller under Windows' Add/Remove Programs. It relies on the WebView2 runtime, which already ships with Windows 10 and 11; on a machine without it, the installer offers to fetch it. An MSI package is also included in the release assets for environments that prefer it.
 
-The installer is unsigned, so Windows SmartScreen will warn on first run. Choose **More info, then Run anyway**.
+The installer is unsigned, so Windows SmartScreen will warn on first run. Choose **More info**, then **Run anyway**.
 
 Prefer to build it yourself, or run it as a plain web app instead? See [Building from source](#building-from-source) below.
 
-## What it does
+## Why
 
-**Generate** takes one template written with `[VARIABLE]` placeholders and a plain list of values per variable, one value per line, so a column pasted straight out of a spreadsheet works as-is, then produces one finished prompt per row. Row count follows the longest list; shorter lists repeat their own last value to fill the rest.
+Generating fifty variations of the same prompt by hand is slow, and routing each one through an AI tool just to swap out a noun burns credits on what is fundamentally string substitution. Bulk Prompts does the substitution instantly and locally: no account, no API keys, no usage limits, because it never calls a model at all. And when you already have a pile of hand-written prompts and need the variables back out of them, that's the same tool, run in reverse.
 
-**Extract** runs the process in reverse: paste the same kind of template plus a batch of prompts someone already wrote by hand, and it recovers the values that would reproduce each one. Variables with no separator between them, like `[FIRST][LAST]`, are genuinely unmatchable by any algorithm; rather than guess, Extract attributes the whole run to the first variable and flags the result `AMBIGUOUS`.
+## Features
 
-Both tools keep independent undo history and persist every field automatically. Neither one calls out to a model or a server; it is all deterministic string parsing, running either as a desktop app or, if you build it yourself, a static web page.
+- **Two tools, one shared shell.** Generate turns one template into many prompts; Extract runs the same idea backward. Each has its own undo history and local storage, switchable with one click.
+- **Spreadsheet-friendly input.** Every variable's values are a plain textarea, one value per line, so a column pasted straight out of a spreadsheet works with no reformatting.
+- **Uneven lists just work.** Row count follows the longest variable's list; shorter lists repeat their own last value to fill the rest, instead of forcing every column to the same length.
+- **Reverses itself.** Give Extract the template plus a batch of prompts someone already wrote, and it recovers the values that produced them, flagging genuinely ambiguous cases (like `[FIRST][LAST]` with no separator between them) instead of silently guessing.
+- **Rich-text copy.** Copy with bold, italic, or underline on the variable portions, so a pasted prompt stays visually distinct in any rich-text destination, and falls back to clean plain text everywhere else.
+- **Full undo history.** A 50-deep undo stack per tool, with every bulk or destructive action (clear, shuffle, reset, bulk replace) captured as a clean, one-step undo point.
+- **Nothing leaves your machine.** No account, no server, no AI calls. Every field persists to local storage automatically, with no Save step.
+
+### An example
+
+**Template**
+
+```
+A portrait of [SUBJECT] wearing [CLOTHING], [STYLE] style.
+```
+
+**Values**
+
+| SUBJECT | CLOTHING | STYLE |
+| --- | --- | --- |
+| a fox | a wool coat | watercolor |
+| an astronaut | a leather jacket | cyberpunk |
+| a violinist | a linen shirt | charcoal sketch |
+
+**Generates**
+
+```
+A portrait of a fox wearing a wool coat, watercolor style.
+A portrait of an astronaut wearing a leather jacket, cyberpunk style.
+A portrait of a violinist wearing a linen shirt, charcoal sketch style.
+```
+
+Extract does the same work in reverse: give it the template and those three finished lines, and it hands back the SUBJECT, CLOTHING, and STYLE columns.
+
+## Desktop vs. browser
+
+The same built frontend (`app/dist/`) runs both ways; the desktop build just loads it into a native window instead of a browser tab. A handful of things differ, detected automatically at runtime rather than built separately for each target:
+
+| | Desktop (Tauri) | Browser |
+| --- | --- | --- |
+| Window | Frameless, with the app's own title bar: drag, minimize, maximize, close | Normal browser tab |
+| Clipboard | Native clipboard plugin; permission is granted once, up front | Web Clipboard API; some browsers prompt on every read |
+| Rich copy (bold/italic/underline) | Same native plugin writes HTML and plain text together | `ClipboardItem` where supported, plain text otherwise |
 
 ## Tech stack
 
 - **[React 19](https://react.dev)** + **[TypeScript](https://www.typescriptlang.org)**
 - **[Vite](https://vite.dev)** for the dev server and bundling
 - **[Tailwind CSS v4](https://tailwindcss.com)**, configured CSS-first, no separate config file
-- **[Tauri v2](https://tauri.app)** (Rust) for the desktop shell
+- **[Tauri v2](https://tauri.app)** (Rust) for the desktop shell, with its clipboard-manager plugin for native copy/paste
 - **[Vitest](https://vitest.dev)** for the logic test suite, **[Oxlint](https://oxc.rs)** for linting
 - No UI framework beyond Tailwind: every control (buttons, toggles, the template editor's inline tokens) is hand-built to the app's own design system
 
@@ -118,26 +157,30 @@ app/
 
 `lib/` has no React dependency on purpose: the logic that has to be correct is testable without a component tree, and portable if the UI is ever rebuilt again.
 
-## Design, "Chalk Blocks"
-
-Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mint are background-only signal colours, each paired with its own text token for contrast. Anything pressable gets a 2px ink edge and a hard offset shadow that flattens on click; anything that only reports state gets a soft edge and no shadow. Bricolage Grotesque for headings and UI text, Inter Tight for body copy, JetBrains Mono for every piece of prompt content and all labels. Full rationale lives in `app/src/index.css`'s header comment.
-
-## Decisions worth knowing
+## How a few things work
 
 **Adjacent variables.** `[FIRST][LAST]` has no separator, so the split point is genuinely unknowable. The whole run is attributed to the *first* variable, later ones come back empty, and the result is flagged `AMBIGUOUS` in the UI with a hint to add a separator. Documented rather than silently guessed.
 
-**Undo history is in-memory.** Each tool has its own 50-deep stack. It survives switching tools but is cleared on reload: field values come back, history does not. The buttons disable when a stack is empty so this is visible, not mysterious. Every bulk or destructive action snapshots first, including the entry-count control in Extract.
+**Undo history is in-memory.** Each tool has its own 50-deep stack. It survives switching tools but is cleared on reload: field values come back, history does not. The undo/redo buttons disable when a stack is empty so this is visible, not mysterious. Every bulk or destructive action snapshots first, including the entry-count control in Extract.
 
 **The entry-count control** in Extract applies on Enter or blur only, never per keystroke, and ignores an empty field instead of reading it as zero. Clearing the box to type a new number would otherwise truncate the list on the first keystroke.
 
 **Detection never depends on how text arrived.** Typed, pasted, or set programmatically all take the same path, and a manual "Detect variables" action is always available regardless of the auto-detect setting.
 
-**Rich-text copy** writes both `text/plain` and `text/html` via the Clipboard API, so pasting a generated prompt into a rich destination keeps the variable portions visually distinct. Falls back to plain text if `ClipboardItem` isn't available.
+**Rich-text copy** writes both `text/plain` and `text/html` together (via Tauri's clipboard plugin on desktop, the `ClipboardItem` API in the browser), so pasting a generated prompt into a rich destination keeps the variable portions visually distinct. Falls back to plain text wherever neither is available.
+
+## Design: "Chalk Blocks"
+
+Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mint are background-only signal colours, each paired with its own text token for contrast. Anything pressable gets a 2px ink edge and a hard offset shadow that flattens on click; anything that only reports state gets a soft edge and no shadow. Bricolage Grotesque for headings and UI text, Inter Tight for body copy, JetBrains Mono for every piece of prompt content and all labels. Full rationale lives in `app/src/index.css`'s header comment.
 
 ## Known gaps
 
 - **Mobile is out of scope for now**, by explicit choice. The layout is responsive down to phone widths, but there's no dedicated mobile app shell.
 - **No dark/light theme toggle.** The bone-and-white look is fixed by design, not tied to the OS colour-scheme preference; this hasn't come up as a requirement yet.
+
+## License
+
+[MIT](LICENSE), (c) Umair Aamir
 
 ## ☕ Leave a tip
 
@@ -172,7 +215,3 @@ G57VrGCbAFWSe2vPfx2ZrUUxzJeiARncKUkYMxw3wKVa
 ```
 
 </div>
-
-## License
-
-[MIT](LICENSE), (c) Umair Aamir
