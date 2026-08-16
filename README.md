@@ -13,7 +13,7 @@ No accounts, no server, no model calls. Every field persists to local storage au
 
 **[Download the latest Windows installer →](https://github.com/UMA1R-01/Bulk-Prompts/releases/latest)**
 
-Grab `Bulk Prompts_x.y.z_x64-setup.exe` from the release assets and run it. It installs to `%LOCALAPPDATA%\Programs\Bulk Prompts` with a Start Menu shortcut, and registers an uninstaller under Windows' Add/Remove Programs. It relies on the WebView2 runtime, which already ships with Windows 10 and 11; on a machine without it, the installer offers to fetch it.
+Grab `Bulk.Prompts_x.y.z_x64-setup.exe` from the release assets and run it (GitHub replaces the spaces in the filename with dots). It installs to `%LOCALAPPDATA%\Programs\Bulk Prompts` with a Start Menu shortcut, and registers an uninstaller under Windows' Add/Remove Programs. It relies on the WebView2 runtime, which already ships with Windows 10 and 11; on a machine without it, the installer offers to fetch it.
 
 The installer is unsigned, so Windows SmartScreen will warn on first run. Choose **More info, then Run anyway**.
 
