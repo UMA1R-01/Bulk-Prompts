@@ -6,6 +6,8 @@ Bulk Prompts is a template-based prompt generator and extractor that runs entire
 
 [![Leave a tip](https://img.shields.io/badge/%E2%98%95-Leave_a_tip-ff69b4?style=for-the-badge)](#-leave-a-tip)
 
+![Bulk Prompts](docs/screenshot.png)
+
 ## Download
 
 **[Download the latest Windows installer →](https://github.com/UMA1R-01/Bulk-Prompts/releases/latest)**
@@ -14,7 +16,7 @@ Grab `Bulk.Prompts_x.y.z_x64-setup.exe` from the release assets and run it (GitH
 
 The installer is unsigned, so Windows SmartScreen will warn on first run. Choose **More info**, then **Run anyway**.
 
-Prefer to build it yourself, or run it as a plain web app instead? See [Building from source](#building-from-source) below.
+Want to try it before installing anything? **[Open the live web version →](https://bulk-prompts.vercel.app/)** It is the same app running entirely in your browser, no install step. The desktop build just adds a native window and richer clipboard support on top, see [Desktop vs. browser](#desktop-vs-browser) below. Prefer to build it yourself instead? See [Building from source](#building-from-source).
 
 ## Why
 
@@ -55,6 +57,8 @@ A portrait of a violinist wearing a linen shirt, charcoal sketch style.
 ```
 
 Extract does the same work in reverse: give it the template and those three finished lines, and it hands back the SUBJECT, CLOTHING, and STYLE columns.
+
+![Extract recovering SUBJECT, CLOTHING, and STYLE from three finished prompts](docs/extractor.png)
 
 ## Desktop vs. browser
 
@@ -177,10 +181,6 @@ Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mi
 - **Mobile is out of scope for now**, by explicit choice. The layout is responsive down to phone widths, but there's no dedicated mobile app shell.
 - **No dark/light theme toggle.** The bone-and-white look is fixed by design, not tied to the OS colour-scheme preference; this hasn't come up as a requirement yet.
 
-## License
-
-[MIT](LICENSE), (c) Umair Aamir
-
 ## ☕ Leave a tip
 
 💛 If you like this app, a tip is always welcome!
@@ -214,3 +214,7 @@ G57VrGCbAFWSe2vPfx2ZrUUxzJeiARncKUkYMxw3wKVa
 ```
 
 </div>
+
+## License
+
+[MIT](LICENSE) © Umair Aamir
