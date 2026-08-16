@@ -1,6 +1,8 @@
-# Bulk Prompts
+<p align="center">
+  <img src="src-tauri/icons/icon.png" width="96" alt="Bulk Prompts logo">
+</p>
 
-[![Latest release](https://img.shields.io/github/v/release/UMA1R-01/Bulk-Prompts?color=5B3DF5)](https://github.com/UMA1R-01/Bulk-Prompts/releases/latest) [![License: MIT](https://img.shields.io/github/license/UMA1R-01/Bulk-Prompts?color=5B3DF5)](LICENSE)
+<h1 align="center">Bulk Prompts</h1>
 
 Bulk Prompts is a template-based prompt generator and extractor that runs entirely on your machine, as a desktop app or in the browser. Write one template with `[VARIABLE]` placeholders, drop in a list of values per variable, and generate every combination as a finished prompt, or run the process backward to recover the values from prompts you already wrote. No account, no server, no AI calls: it is all deterministic string work, and every field persists locally with no Save button.
 
@@ -171,15 +173,6 @@ src-tauri/              Rust side of the desktop shell: window config, bundler
 **Detection never depends on how text arrived.** Typed, pasted, or set programmatically all take the same path, and a manual "Detect variables" action is always available regardless of the auto-detect setting.
 
 **Rich-text copy** writes both `text/plain` and `text/html` together (via Tauri's clipboard plugin on desktop, the `ClipboardItem` API in the browser), so pasting a generated prompt into a rich destination keeps the variable portions visually distinct. Falls back to plain text wherever neither is available.
-
-## Design: "Chalk Blocks"
-
-Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mint are background-only signal colours, each paired with its own text token for contrast. Anything pressable gets a 2px ink edge and a hard offset shadow that flattens on click; anything that only reports state gets a soft edge and no shadow. Bricolage Grotesque for headings and UI text, Inter Tight for body copy, JetBrains Mono for every piece of prompt content and all labels. Full rationale lives in `src/index.css`'s header comment.
-
-## Known gaps
-
-- **Mobile is out of scope for now**, by explicit choice. The layout is responsive down to phone widths, but there's no dedicated mobile app shell.
-- **No dark/light theme toggle.** The bone-and-white look is fixed by design, not tied to the OS colour-scheme preference; this hasn't come up as a requirement yet.
 
 ## ☕ Leave a tip
 
