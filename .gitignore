@@ -2,13 +2,13 @@
 node_modules/
 
 # Build output
-app/dist/
-app/dist-ssr/
+dist/
+dist-ssr/
 *.local
 
 # Rust / Tauri build artifacts
-app/src-tauri/target/
-app/src-tauri/gen/schemas/
+src-tauri/target/
+src-tauri/gen/schemas/
 
 # Logs
 logs

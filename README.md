@@ -58,7 +58,7 @@ Extract does the same work in reverse: give it the template and those three fini
 
 ## Desktop vs. browser
 
-The same built frontend (`app/dist/`) runs both ways; the desktop build just loads it into a native window instead of a browser tab. A handful of things differ, detected automatically at runtime rather than built separately for each target:
+The same built frontend (`dist/`) runs both ways; the desktop build just loads it into a native window instead of a browser tab. A handful of things differ, detected automatically at runtime rather than built separately for each target:
 
 | | Desktop (Tauri) | Browser |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ The desktop build additionally needs the [Tauri v2 prerequisites](https://tauri.
 
 ```bash
 git clone https://github.com/UMA1R-01/Bulk-Prompts.git
-cd Bulk-Prompts/app
+cd Bulk-Prompts
 npm install
 ```
 
@@ -117,7 +117,7 @@ npm run build
 npm run tauri build
 ```
 
-`npm run build` type-checks and bundles the web app to `app/dist/`. `npm run tauri build` produces a native installer under `app/src-tauri/target/release/bundle/`.
+`npm run build` type-checks and bundles the web app to `dist/`. `npm run tauri build` produces a native installer under `src-tauri/target/release/bundle/`.
 
 ### Test and lint
 
@@ -131,27 +131,26 @@ All logic tests live in one file, `src/lib/core.test.ts`, covering every module 
 ## Project layout
 
 ```
-app/
-  public/
-    fonts/             self-hosted Bricolage Grotesque, Inter Tight, JetBrains Mono
-    favicon.svg
-  src/
-    lib/                pure TypeScript, no React import, unit-testable alone
-      template.ts        tokenizing and variable detection
-      generator.ts       row generation + HTML for rich copy
-      extractor.ts       reverse matching, ambiguity flagging, grouping
-      wordDiff.ts        LCS word diff used as the extractor fallback
-      undoStack.ts       bounded snapshot history
-      clipboard.ts       every copy/paste goes through here
-      storage.ts         localStorage read/write, namespaced per tool
-      core.test.ts       covers all of the above
-    state/              useGenerator / useExtractor, the two tools' state machines
-    components/         TemplateEditor, VariableRow, FindReplace, OutputStream,
+public/
+  fonts/               self-hosted Bricolage Grotesque, Inter Tight, JetBrains Mono
+  favicon.svg
+src/
+  lib/                  pure TypeScript, no React import, unit-testable alone
+    template.ts          tokenizing and variable detection
+    generator.ts         row generation + HTML for rich copy
+    extractor.ts         reverse matching, ambiguity flagging, grouping
+    wordDiff.ts          LCS word diff used as the extractor fallback
+    undoStack.ts         bounded snapshot history
+    clipboard.ts         every copy/paste goes through here
+    storage.ts           localStorage read/write, namespaced per tool
+    core.test.ts         covers all of the above
+  state/                useGenerator / useExtractor, the two tools' state machines
+  components/           TemplateEditor, VariableRow, FindReplace, OutputStream,
                          GeneratorView, ExtractorView, TitleBar (the custom
                          frameless window bar used by the desktop build),
                          ui.tsx (shared primitives), icons.tsx (icon set)
-    App.tsx             shell: tool switcher, undo/redo/reset, scroll-to-top
-  src-tauri/            Rust side of the desktop shell: window config, bundler
+  App.tsx               shell: tool switcher, undo/redo/reset, scroll-to-top
+src-tauri/              Rust side of the desktop shell: window config, bundler
                          config, and app icons
 ```
 
@@ -171,7 +170,7 @@ app/
 
 ## Design: "Chalk Blocks"
 
-Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mint are background-only signal colours, each paired with its own text token for contrast. Anything pressable gets a 2px ink edge and a hard offset shadow that flattens on click; anything that only reports state gets a soft edge and no shadow. Bricolage Grotesque for headings and UI text, Inter Tight for body copy, JetBrains Mono for every piece of prompt content and all labels. Full rationale lives in `app/src/index.css`'s header comment.
+Bone (`#FFFCF3`) page, white cards, one accent (`#5B3DF5` violet). Butter and mint are background-only signal colours, each paired with its own text token for contrast. Anything pressable gets a 2px ink edge and a hard offset shadow that flattens on click; anything that only reports state gets a soft edge and no shadow. Bricolage Grotesque for headings and UI text, Inter Tight for body copy, JetBrains Mono for every piece of prompt content and all labels. Full rationale lives in `src/index.css`'s header comment.
 
 ## Known gaps
 
