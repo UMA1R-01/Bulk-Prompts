@@ -5,7 +5,12 @@ import {
   type GeneratedPrompt,
   type GenerateBlock,
 } from '../lib/generator';
-import { detectVariables, hasAdjacentVariables, parseValueLines } from '../lib/template';
+import {
+  detectVariables,
+  effectivePermutationSize,
+  hasAdjacentVariables,
+  parseValueLines,
+} from '../lib/template';
 import { K, load, save } from '../lib/storage';
 import { UndoStack } from '../lib/undoStack';
 
@@ -14,8 +19,10 @@ export interface GeneratorSnapshot {
   values: Record<string, string>;
   collapsed: Record<string, boolean>;
   autoDetect: boolean;
-  /** Variables with permutation grouping on, keyed to their group size. Absent = off. */
-  permutations: Record<string, number>;
+  /** The section-wide Permutation default: on/off plus the shared group size. */
+  permutationGlobal: { on: boolean; size: number };
+  /** Per-variable exceptions to the default — 0 means explicitly off, >=2 a custom size. */
+  permutationOverrides: Record<string, number>;
 }
 
 const EMPTY: GeneratorSnapshot = {
@@ -23,7 +30,8 @@ const EMPTY: GeneratorSnapshot = {
   values: {},
   collapsed: {},
   autoDetect: true,
-  permutations: {},
+  permutationGlobal: { on: false, size: 2 },
+  permutationOverrides: {},
 };
 
 function initial(): GeneratorSnapshot {
@@ -32,12 +40,10 @@ function initial(): GeneratorSnapshot {
     values: load<Record<string, string>>(K.genValues, {}),
     collapsed: load<Record<string, boolean>>(K.genCollapsed, {}),
     autoDetect: load(K.genAutoDetect, true),
-    permutations: load<Record<string, number>>(K.genPermutations, {}),
+    permutationGlobal: load(K.genPermutationGlobal, { on: false, size: 2 }),
+    permutationOverrides: load<Record<string, number>>(K.genPermutationOverrides, {}),
   };
 }
-
-/** Default group size a variable gets the moment its Permutation toggle turns on. */
-const DEFAULT_GROUP_SIZE = 2;
 
 const BLOCK_MESSAGE: Record<GenerateBlock, string> = {
   'empty-template': 'Write a template first — there is nothing to generate from.',
@@ -78,7 +84,8 @@ export function useGenerator() {
     save(K.genValues, s.values);
     save(K.genCollapsed, s.collapsed);
     save(K.genAutoDetect, s.autoDetect);
-    save(K.genPermutations, s.permutations);
+    save(K.genPermutationGlobal, s.permutationGlobal);
+    save(K.genPermutationOverrides, s.permutationOverrides);
   }, []);
 
   const apply = useCallback(
@@ -143,11 +150,11 @@ export function useGenerator() {
     const out: Record<string, number> = {};
     for (const v of variables) {
       const n = parseValueLines(snap.values[v] ?? '').length;
-      const size = snap.permutations[v];
+      const size = effectivePermutationSize(v, snap.permutationGlobal, snap.permutationOverrides);
       out[v] = size && size > 1 && n > 0 ? Math.ceil(n / size) : n;
     }
     return out;
-  }, [variables, snap.values, snap.permutations]);
+  }, [variables, snap.values, snap.permutationGlobal, snap.permutationOverrides]);
 
   // Longest list among the *displayed* variables. Deliberately not derived
   // from the live template — when auto-detect is off this is meant to stay
@@ -168,18 +175,18 @@ export function useGenerator() {
 
   const readyCount = variables.filter((v) => counts[v] > 0).length;
 
-  /** Drops collapsed/permutation entries for variables detectNow() no longer finds. */
+  /** Drops collapsed/permutation-override entries for variables detectNow() no longer finds. */
   function pruneStale(keep: Set<string>) {
     const collapsedEntries = Object.entries(snap.collapsed).filter(([k]) => keep.has(k));
-    const permutationEntries = Object.entries(snap.permutations).filter(([k]) => keep.has(k));
+    const overrideEntries = Object.entries(snap.permutationOverrides).filter(([k]) => keep.has(k));
     if (
       collapsedEntries.length !== Object.keys(snap.collapsed).length ||
-      permutationEntries.length !== Object.keys(snap.permutations).length
+      overrideEntries.length !== Object.keys(snap.permutationOverrides).length
     ) {
       apply({
         ...snap,
         collapsed: Object.fromEntries(collapsedEntries),
-        permutations: Object.fromEntries(permutationEntries),
+        permutationOverrides: Object.fromEntries(overrideEntries),
       });
     }
   }
@@ -269,27 +276,43 @@ export function useGenerator() {
     },
 
     /**
-     * Turns a variable's Permutation grouping on or off. A behavior toggle,
-     * not a content edit — goes through apply(), the same non-undoable path
-     * as auto-detect and collapse, since flipping it back is one click, not
-     * a history entry.
+     * Turns the section-wide Permutation default on or off. A behavior
+     * toggle, not a content edit — goes through apply(), the same
+     * non-undoable path as auto-detect and collapse.
      */
-    togglePermutation: (name: string) => {
-      const next = { ...snap.permutations };
-      if (next[name]) {
-        delete next[name];
-      } else {
-        next[name] = DEFAULT_GROUP_SIZE;
-      }
-      apply({ ...snap, permutations: next });
-    },
+    setGlobalPermutationOn: (on: boolean) =>
+      apply({ ...snap, permutationGlobal: { ...snap.permutationGlobal, on } }),
 
-    /** Sets the group size for a variable that already has Permutation on. */
-    setPermutationSize: (name: string, size: number) => {
+    /** Sets the shared group size every non-overridden variable follows live. */
+    setGlobalPermutationSize: (size: number) => {
       if (!Number.isFinite(size)) return;
       const clamped = Math.max(2, Math.floor(size));
-      if (snap.permutations[name] === clamped) return;
-      apply({ ...snap, permutations: { ...snap.permutations, [name]: clamped } });
+      if (snap.permutationGlobal.size === clamped) return;
+      apply({ ...snap, permutationGlobal: { ...snap.permutationGlobal, size: clamped } });
+    },
+
+    /**
+     * Detaches one variable from the section-wide default — `size` >= 2
+     * gives it its own group size, 0 opts it out of grouping entirely even
+     * while the default is on. Either way it stops following
+     * permutationGlobal until clearPermutationOverride() reattaches it.
+     */
+    setPermutationOverride: (name: string, size: number) => {
+      if (!Number.isFinite(size)) return;
+      const clamped = size <= 0 ? 0 : Math.max(2, Math.floor(size));
+      if (snap.permutationOverrides[name] === clamped) return;
+      apply({
+        ...snap,
+        permutationOverrides: { ...snap.permutationOverrides, [name]: clamped },
+      });
+    },
+
+    /** Reattaches a variable to the section-wide default. */
+    clearPermutationOverride: (name: string) => {
+      if (!(name in snap.permutationOverrides)) return;
+      const next = { ...snap.permutationOverrides };
+      delete next[name];
+      apply({ ...snap, permutationOverrides: next });
     },
 
     /**
@@ -324,7 +347,12 @@ export function useGenerator() {
       // Always re-resolved from the live template, so editing it after
       // detection can never break generation — independent of the detected/
       // displayed list above, by design.
-      const outcome = generatePrompts(snap.template, snap.values, snap.permutations);
+      const effective: Record<string, number> = {};
+      for (const v of detectVariables(snap.template)) {
+        const size = effectivePermutationSize(v, snap.permutationGlobal, snap.permutationOverrides);
+        if (size) effective[v] = size;
+      }
+      const outcome = generatePrompts(snap.template, snap.values, effective);
       if (!outcome.ok) {
         setNotice(BLOCK_MESSAGE[outcome.block]);
         setOutput([]);

@@ -7,7 +7,7 @@ import {
   promptText,
   promptValues,
 } from './generator';
-import { detectVariables, groupValues, tokenizeTemplate } from './template';
+import { detectVariables, effectivePermutationSize, groupValues, tokenizeTemplate } from './template';
 import { UndoStack } from './undoStack';
 import { addedFragments, wordDiff } from './wordDiff';
 
@@ -143,6 +143,26 @@ describe('permutation grouping', () => {
     expect(
       projectedRowCount('[A]', { A: '1\n2\n3\n4\n5' }, { A: 2 }),
     ).toBe(3);
+  });
+});
+
+describe('effective permutation size', () => {
+  it('inherits the section-wide default when there is no override', () => {
+    expect(effectivePermutationSize('A', { on: true, size: 3 }, {})).toBe(3);
+    expect(effectivePermutationSize('A', { on: false, size: 3 }, {})).toBeUndefined();
+  });
+
+  it('an override of >= 2 wins regardless of the default', () => {
+    expect(effectivePermutationSize('A', { on: false, size: 3 }, { A: 5 })).toBe(5);
+    expect(effectivePermutationSize('A', { on: true, size: 3 }, { A: 5 })).toBe(5);
+  });
+
+  it('an override of 0 opts out even while the default is on', () => {
+    expect(effectivePermutationSize('A', { on: true, size: 3 }, { A: 0 })).toBeUndefined();
+  });
+
+  it('only the named variable is affected by its own override', () => {
+    expect(effectivePermutationSize('B', { on: true, size: 3 }, { A: 0 })).toBe(3);
   });
 });
 

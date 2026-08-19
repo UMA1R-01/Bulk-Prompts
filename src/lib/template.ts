@@ -102,3 +102,29 @@ export function groupValues(lines: string[], size: number): string[] {
   }
   return out;
 }
+
+/**
+ * The group size to use for one variable, or undefined if it isn't grouped
+ * at all.
+ *
+ * Permutation has a single section-wide default (on/off plus a shared
+ * size) rather than a toggle on every variable — that's the whole point of
+ * it: turning grouping on doesn't mean visiting every row. A variable
+ * follows that default unless it's named in `overrides`, which records
+ * exceptions carved out one variable at a time (see the Permutation pill on
+ * each row): 0 means "opted out even though the default is on", any size
+ * >= 2 means "grouped at this size regardless of what the default says".
+ * No entry at all just inherits the default, live — change the default and
+ * every non-overridden variable picks it up immediately.
+ */
+export function effectivePermutationSize(
+  name: string,
+  global: { on: boolean; size: number },
+  overrides: Record<string, number>,
+): number | undefined {
+  if (name in overrides) {
+    const v = overrides[name];
+    return v >= 2 ? v : undefined;
+  }
+  return global.on ? global.size : undefined;
+}

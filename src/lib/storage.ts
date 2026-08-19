@@ -16,7 +16,8 @@ export const K = {
   genValues: 'gen.values',
   genAutoDetect: 'gen.autoDetect',
   genCollapsed: 'gen.collapsed',
-  genPermutations: 'gen.permutations',
+  genPermutationGlobal: 'gen.permutationGlobal',
+  genPermutationOverrides: 'gen.permutationOverrides',
 
   extTemplate: 'ext.template',
   extPrompts: 'ext.prompts',

@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Icon } from './icons';
 
@@ -234,6 +234,140 @@ export function Toggle({
       />
       {label}
     </button>
+  );
+}
+
+/**
+ * A small numeric field for a value with a floor — group sizes, currently
+ * its only use. A few things set it apart from a plain input:
+ *
+ * Every valid keystroke applies immediately via `onChange`, rather than
+ * waiting for Enter or blur the way the Extractor's entry-count field
+ * deliberately does — that field delays commit because a premature zero
+ * would truncate a list, but nothing here is destructive, so waiting would
+ * just be friction. ArrowUp/ArrowDown and the mouse wheel (while hovered,
+ * no click needed) nudge the value by one for the same reason a keyboard
+ * or a precise click shouldn't be required for a number this small.
+ *
+ * The displayed text only re-syncs from `value` while the field isn't
+ * focused. Without that guard, applying live would fight the user mid-type:
+ * typing "1" of "12" would round-trip through onChange's own floor (1 → 2),
+ * come back down as the next `value` prop, and overwrite "1" with "2"
+ * before the second digit ever landed.
+ */
+export function Stepper({
+  value,
+  onChange,
+  disabled,
+  ariaLabel,
+  min = 2,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  min?: number;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(String(value));
+  // Mirrors `draft`, updated synchronously on every write — unlike the
+  // state itself, which only actually changes on the next render. A wheel
+  // gesture can fire several native events before React ever gets to flush
+  // one (dispatchEvent runs them back to back, no paint in between), and
+  // each of those calls nudge() in turn; if nudge read `draft` from its own
+  // closure, every one of those calls would see the same stale value and
+  // compute the same "current + 1" instead of accumulating. Reading the ref
+  // instead means each call sees what the previous call in the same burst
+  // just wrote, synchronously, with no render in between required.
+  const draftRef = useRef(draft);
+
+  useEffect(() => {
+    if (document.activeElement !== ref.current) {
+      draftRef.current = String(value);
+      setDraft(String(value));
+    }
+  }, [value]);
+
+  const apply = useCallback(
+    (raw: string) => {
+      draftRef.current = raw;
+      setDraft(raw);
+      const n = Number.parseInt(raw, 10);
+      if (Number.isFinite(n)) onChange(n);
+    },
+    [onChange],
+  );
+
+  const nudge = useCallback(
+    (steps: number) => {
+      const current = Number.parseInt(draftRef.current, 10);
+      const base = Number.isFinite(current) ? current : value;
+      apply(String(Math.max(min, base + steps)));
+    },
+    [value, min, apply],
+  );
+
+  // Lives outside the effect, in a ref: the effect below re-subscribes
+  // every time `nudge` changes, which happens after every applied step —
+  // a plain closure-local accumulator would reset to 0 right then, right
+  // when it's holding the sub-threshold remainder from the event that just
+  // fired the step. Losing that remainder on every step is small per step,
+  // but compounds into scrolling feeling like it takes progressively more
+  // distance than it should.
+  const wheelAccum = useRef(0);
+
+  // A native listener, not the JSX onWheel prop: React registers wheel
+  // listeners as passive by default, which silently swallows
+  // preventDefault — without it, scrolling over this field would nudge the
+  // value *and* scroll the page underneath it at the same time. Deltas are
+  // accumulated rather than read one event at a time because a trackpad
+  // fires dozens of tiny-deltaY events per swipe where a mouse wheel fires
+  // one large one per notch; treating every event as a full step would make
+  // a trackpad swipe blow straight past the intended value.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || disabled) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      wheelAccum.current += e.deltaY;
+      // 100 matches a standard mouse wheel's one-notch deltaY (Chrome and
+      // Firefox on Windows both default to 100) so one physical click of
+      // the wheel is exactly one step, not two.
+      const THRESHOLD = 100;
+      let steps = 0;
+      while (Math.abs(wheelAccum.current) >= THRESHOLD) {
+        steps += wheelAccum.current > 0 ? -1 : 1;
+        wheelAccum.current -= Math.sign(wheelAccum.current) * THRESHOLD;
+      }
+      if (steps !== 0) nudge(steps);
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [disabled, nudge]);
+
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      disabled={disabled}
+      onChange={(e) => apply(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          (e.target as HTMLInputElement).blur();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          nudge(e.key === 'ArrowUp' ? 1 : -1);
+        }
+      }}
+      // Normalizes the box back to whatever actually applied — if what was
+      // left behind was below the floor, this is the one moment that
+      // correction becomes visible.
+      onBlur={() => setDraft(String(value))}
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      className="field"
+      style={{ width: 40, fontSize: 12, padding: '5px 6px', textAlign: 'center' }}
+    />
   );
 }
 

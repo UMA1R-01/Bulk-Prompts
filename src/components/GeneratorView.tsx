@@ -1,11 +1,12 @@
 import { pasteText } from '../lib/clipboard';
 import type { CopyStyle } from '../lib/generator';
+import { effectivePermutationSize } from '../lib/template';
 import type { Generator } from '../state/useGenerator';
 import { OutputStream } from './OutputStream';
 import { TemplateEditor } from './TemplateEditor';
 import { VariableRow } from './VariableRow';
 import { Icon } from './icons';
-import { BigButton, Card, CardHead, Chip, Empty, Label, Notice, Toggle } from './ui';
+import { BigButton, Card, CardHead, Chip, Empty, Label, Notice, Stepper, Toggle } from './ui';
 
 export function GeneratorView({
   g,
@@ -98,9 +99,39 @@ export function GeneratorView({
                   {g.readyCount} of {g.variables.length} filled
                 </span>
                 {g.variables.length > 0 && (
-                  <Chip onClick={() => g.setAllCollapsed(!allCollapsed)}>
-                    {allCollapsed ? 'Expand all' : 'Collapse all'}
-                  </Chip>
+                  <>
+                    {/* The one Permutation control most people ever need — on
+                        turns every variable into groups of this size at
+                        once. A row only gets its own copy of this control if
+                        it clicks its way out via the pill (see VariableRow),
+                        which is the exception, not the starting point. */}
+                    <div className="flex items-center gap-1.5">
+                      <Toggle
+                        checked={g.snap.permutationGlobal.on}
+                        onChange={g.setGlobalPermutationOn}
+                        label="Permutation"
+                      />
+                      <span
+                        className="flex items-center gap-1.5"
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--color-grey)',
+                          opacity: g.snap.permutationGlobal.on ? 1 : 0.4,
+                        }}
+                      >
+                        <Stepper
+                          value={g.snap.permutationGlobal.size}
+                          onChange={g.setGlobalPermutationSize}
+                          disabled={!g.snap.permutationGlobal.on}
+                          ariaLabel="Group size for every variable"
+                        />
+                        per group
+                      </span>
+                    </div>
+                    <Chip onClick={() => g.setAllCollapsed(!allCollapsed)}>
+                      {allCollapsed ? 'Expand all' : 'Collapse all'}
+                    </Chip>
+                  </>
                 )}
               </div>
             </div>
@@ -120,7 +151,12 @@ export function GeneratorView({
                     count={g.counts[name] ?? 0}
                     runLength={g.rows}
                     collapsed={!!g.snap.collapsed[name]}
-                    permutationSize={g.snap.permutations[name]}
+                    permutationSize={effectivePermutationSize(
+                      name,
+                      g.snap.permutationGlobal,
+                      g.snap.permutationOverrides,
+                    )}
+                    permutationOverridden={name in g.snap.permutationOverrides}
                     onChange={(raw) => g.setValues(name, raw)}
                     onToggle={() => g.toggleCollapsed(name)}
                     onShuffle={() => g.shuffle(name)}
@@ -129,8 +165,8 @@ export function GeneratorView({
                     onReplaceRange={(start, end, replace) =>
                       g.replaceRangeIn(name, start, end, replace)
                     }
-                    onPermutationToggle={() => g.togglePermutation(name)}
-                    onPermutationSizeChange={(size) => g.setPermutationSize(name, size)}
+                    onPermutationOverride={(size) => g.setPermutationOverride(name, size)}
+                    onPermutationOverrideClear={() => g.clearPermutationOverride(name)}
                     onNotice={onNotice}
                   />
                 ))}

@@ -199,9 +199,10 @@ export function ExtractorView({
               <input
                 value={total}
                 onChange={(e) => setTotalDraft(e.target.value)}
-                // Applied on Enter or blur only. Never per keystroke — clearing
-                // the box to retype produces a transient empty value, and
-                // acting on that would silently truncate the list.
+                // Typed digits are applied on Enter or blur only, never per
+                // keystroke — clearing the box to retype produces a
+                // transient empty value, and acting on that would silently
+                // truncate the list.
                 //
                 // Enter commits directly rather than just calling .blur() and
                 // leaning on the resulting onBlur to do it: calling .blur()
@@ -214,6 +215,21 @@ export function ExtractorView({
                   if (e.key === 'Enter') {
                     x.setTotal(total);
                     (e.target as HTMLInputElement).blur();
+                    return;
+                  }
+                  // Unlike typing, an arrow press is never an ambiguous
+                  // partial state — it's one deliberate step from a known
+                  // value — so it's safe to apply immediately even though
+                  // this field is otherwise Enter/blur-only. No scroll-wheel
+                  // support to match: a stray scroll landing on this box
+                  // would delete entries with no warning at all.
+                  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const current = Number.parseInt(total, 10);
+                    const base = Number.isFinite(current) ? current : x.snap.prompts.length;
+                    const next = String(Math.max(1, base + (e.key === 'ArrowUp' ? 1 : -1)));
+                    setTotalDraft(next);
+                    x.setTotal(next);
                   }
                 }}
                 onBlur={() => x.setTotal(total)}
@@ -228,7 +244,7 @@ export function ExtractorView({
                 }}
               />
               <span style={{ fontSize: 12, color: 'var(--color-grey)' }}>
-                applied on Enter or when you click away
+                arrow keys nudge it; typing applies on Enter or when you click away
               </span>
             </div>
 
