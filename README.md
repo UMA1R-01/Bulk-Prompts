@@ -29,7 +29,7 @@ Generating fifty variations of the same prompt by hand is slow, and routing each
 - **Two tools, one shared shell.** Generate turns one template into many prompts; Extract runs the same idea backward. Each has its own undo history and local storage, switchable with one click.
 - **Spreadsheet-friendly input.** Every variable's values are a plain textarea, one value per line, so a column pasted straight out of a spreadsheet works with no reformatting.
 - **Uneven lists just work.** Row count follows the longest variable's list; shorter lists repeat their own last value to fill the rest, instead of forcing every column to the same length.
-- **Permutation grouping.** Flip a variable's Permutation toggle and pick a group size, and its list stops filling one row at a time — it chunks into consecutive `{a, b, c}`-style groups, one group per row, so a long list of tags or subjects can drive a handful of combined prompts instead of dozens of single ones.
+- **Permutation grouping.** One switch, next to *Collapse all*, turns every variable's list into consecutive `{a, b, c}`-style groups at a shared size, live — change the number and every variable regroups at once. Any single variable can still break off with its own size, or opt out entirely, independent of the rest.
 - **Reverses itself.** Give Extract the template plus a batch of prompts someone already wrote, and it recovers the values that produced them, flagging genuinely ambiguous cases (like `[FIRST][LAST]` with no separator between them) instead of silently guessing.
 - **Rich-text copy.** Copy with bold, italic, or underline on the variable portions, so a pasted prompt stays visually distinct in any rich-text destination, and falls back to clean plain text everywhere else.
 - **Full undo history.** A 50-deep undo stack per tool, with every bulk or destructive action (clear, shuffle, reset, bulk replace) captured as a clean, one-step undo point.
@@ -65,15 +65,19 @@ Extract does the same work in reverse: give it the template and those three fini
 
 ### Permutation grouping
 
-Turn on a variable's **Permutation** toggle and pick a group size, and that variable stops filling one row at a time — its list chunks into consecutive groups instead, each substituted as a single `{a, b, c}`-style value. Everything downstream (row count, the "longest list" driver, repeats-last) treats a group exactly like any other value.
+One **Permutation** control, next to *Collapse all*, is the default entry point for the whole section: turn it on and pick a size, and every variable's list stops filling one row at a time — each one chunks into consecutive groups instead, substituted as a single `{a, b, c}`-style value. Change the shared size and every variable regroups immediately, live — no Enter, no clicking away, and the mouse wheel works too while a group-size field is hovered.
+
+A single variable can still go its own way. Click any variable's `→ N groups of M` pill and it detaches with its own toggle and size — a different number, or off entirely — independent of whatever the shared default is doing. A **Match default** chip on that row reattaches it. Everything downstream (row count, the "longest list" driver, repeats-last) treats a group exactly like any other value, whether it came from the default or a variable's own override.
+
+A trailing group left with fewer values than the group size — the list didn't divide evenly — renders as a plain value instead of a set, since there's nothing left in it to group against.
 
 **Template**
 
 ```
-A group portrait of [SUBJECTS].
+A group portrait of [SUBJECTS], painted in [STYLE].
 ```
 
-**SUBJECTS**, six values, Permutation on with a group size of 3
+**SUBJECTS**, five values, following the shared default at a group size of 2
 
 ```
 a fox
@@ -81,17 +85,28 @@ an astronaut
 a violinist
 a beekeeper
 a locksmith
-a tightrope walker
+```
+
+**STYLE**, overridden to its own group size of 4
+
+```
+oil painting
+watercolor
+ink wash
+charcoal
 ```
 
 **Generates**
 
 ```
-A group portrait of {a fox, an astronaut, a violinist}.
-A group portrait of {a beekeeper, a locksmith, a tightrope walker}.
+A group portrait of {a fox, an astronaut}, painted in {oil painting, watercolor, ink wash, charcoal}.
+A group portrait of {a violinist, a beekeeper}, painted in {oil painting, watercolor, ink wash, charcoal}.
+A group portrait of a locksmith, painted in {oil painting, watercolor, ink wash, charcoal}.
 ```
 
-![SUBJECTS variable with Permutation on, grouping six values into two rows of three](docs/permutation.png)
+STYLE only has one group, so it repeats for every row past the first — the same rule any variable with a shorter list follows, whether it's grouped or not. Note the third row's SUBJECTS: a trailing group of exactly one value renders plain, not `{braced}`.
+
+![SUBJECTS following the shared default at a group size of 2 while STYLE is overridden to its own group size of 4, with the section-wide Permutation control visible at the top](docs/permutation.png)
 
 ## Desktop vs. browser
 
@@ -199,7 +214,9 @@ src-tauri/              Rust side of the desktop shell: window config, bundler
 
 **Undo history is in-memory.** Each tool has its own 50-deep stack. It survives switching tools but is cleared on reload: field values come back, history does not. The undo/redo buttons disable when a stack is empty so this is visible, not mysterious. Every bulk or destructive action snapshots first, including the entry-count control in Extract.
 
-**The entry-count control** in Extract applies on Enter or blur only, never per keystroke, and ignores an empty field instead of reading it as zero. Clearing the box to type a new number would otherwise truncate the list on the first keystroke.
+**Permutation's group-size fields update live** — type, use the arrow keys, or scroll the mouse wheel while hovered, and it applies immediately, no Enter needed. Safe to do live because nothing here is destructive: regrouping just re-slices the same values. The wheel accumulates fractional scroll input (a trackpad sends many tiny events per swipe, a mouse wheel sends one large one per notch) so either device moves the value by a clean, predictable step rather than overshooting.
+
+**The entry-count control** in Extract is the one field that stays cautious: typed digits apply on Enter or blur only, never per keystroke, and an empty field is ignored rather than read as zero — clearing the box to type a new number would otherwise truncate the list on the first keystroke. Arrow keys are the exception even here, since a single press is a deliberate step rather than an ambiguous partial state, so they still apply immediately. There's deliberately no scroll-wheel support on this one: unlike a group size, a stray scroll here would delete real entries with no warning at all.
 
 **Detection never depends on how text arrived.** Typed, pasted, or set programmatically all take the same path, and a manual "Detect variables" action is always available regardless of the auto-detect setting.
 
