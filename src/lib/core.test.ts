@@ -7,7 +7,7 @@ import {
   promptText,
   promptValues,
 } from './generator';
-import { detectVariables, tokenizeTemplate } from './template';
+import { detectVariables, groupValues, tokenizeTemplate } from './template';
 import { UndoStack } from './undoStack';
 import { addedFragments, wordDiff } from './wordDiff';
 
@@ -86,6 +86,59 @@ describe('generation', () => {
 
   it('projected row count matches what generation produces', () => {
     expect(projectedRowCount('[A][B]', { A: '1\n2', B: '1' })).toBe(2);
+  });
+});
+
+describe('permutation grouping', () => {
+  it('chunks consecutive values into brace-wrapped, comma-joined groups', () => {
+    expect(groupValues(['cat', 'dog', 'bird', 'fish', 'hamster', 'lizard'], 2)).toEqual([
+      '{cat, dog}',
+      '{bird, fish}',
+      '{hamster, lizard}',
+    ]);
+  });
+
+  it('a trailing partial group still gets its own braced row', () => {
+    expect(groupValues(['a', 'b', 'c'], 2)).toEqual(['{a, b}', '{c}']);
+  });
+
+  it('size <= 1 is a no-op — no grouping, no braces', () => {
+    expect(groupValues(['a', 'b'], 1)).toEqual(['a', 'b']);
+    expect(groupValues(['a', 'b'], 0)).toEqual(['a', 'b']);
+  });
+
+  it('generation groups a permutation-enabled variable before assigning rows', () => {
+    const out = generatePrompts(
+      '[SUBJECT]',
+      { SUBJECT: 'cat\ndog\nbird\nfish\nhamster\nlizard' },
+      { SUBJECT: 2 },
+    );
+    if (!out.ok) throw new Error(`blocked: ${out.block}`);
+    expect(out.prompts.map(promptText)).toEqual([
+      '{cat, dog}',
+      '{bird, fish}',
+      '{hamster, lizard}',
+    ]);
+  });
+
+  it('a permutation group counts as one value against another variable\'s list', () => {
+    const out = generatePrompts(
+      '[SUBJECT] in [STYLE]',
+      { SUBJECT: 'cat\ndog\nbird\nfish', STYLE: 'oil\nwatercolor' },
+      { SUBJECT: 2 },
+    );
+    if (!out.ok) throw new Error(`blocked: ${out.block}`);
+    // SUBJECT groups down to 2 rows, matching STYLE's own 2 values exactly.
+    expect(out.prompts.map(promptText)).toEqual([
+      '{cat, dog} in oil',
+      '{bird, fish} in watercolor',
+    ]);
+  });
+
+  it('projected row count reflects grouping too', () => {
+    expect(
+      projectedRowCount('[A]', { A: '1\n2\n3\n4\n5' }, { A: 2 }),
+    ).toBe(3);
   });
 });
 

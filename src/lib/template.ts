@@ -78,3 +78,22 @@ export function parseValueLines(raw: string): string[] {
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 }
+
+/**
+ * Splits a value list into consecutive groups of `size`, each joined into one
+ * `{comma, separated}` string — braced the way Midjourney's own permutation
+ * syntax is, so a group reads as a group wherever it lands, including inside
+ * a copied/generated prompt. A group counts as a single value at generation
+ * time — this is the whole mechanism behind a variable's "Permutation"
+ * toggle: it turns a long value list into a handful of combined rows without
+ * a second bracket syntax in the template itself. `size` <= 1 is a no-op,
+ * since a group of one value is indistinguishable from not grouping at all.
+ */
+export function groupValues(lines: string[], size: number): string[] {
+  if (size <= 1) return lines;
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += size) {
+    out.push(`{${lines.slice(i, i + size).join(', ')}}`);
+  }
+  return out;
+}

@@ -1,4 +1,4 @@
-import { detectVariables, parseValueLines, tokenizeTemplate } from './template';
+import { detectVariables, groupValues, parseValueLines, tokenizeTemplate } from './template';
 
 /**
  * A run of text inside a generated prompt. `variable` is undefined for literal
@@ -43,10 +43,16 @@ export function promptValues(p: GeneratedPrompt): Record<string, string> {
  * shorter repeats *its own last value* for the remaining rows — not blank, not
  * cycled from the top. A variable with no values contributes an empty string
  * and does not block generation.
+ *
+ * `permutations` names variables whose list should first be chunked into
+ * consecutive groups of the given size (see `groupValues`) — each group then
+ * behaves as one value, same as any other line, for row-count and repeat
+ * purposes.
  */
 export function generatePrompts(
   template: string,
   rawValues: Record<string, string>,
+  permutations: Record<string, number> = {},
 ): GenerationOutcome {
   if (!template.trim()) return { ok: false, block: 'empty-template' };
 
@@ -55,7 +61,11 @@ export function generatePrompts(
   if (names.length === 0) return { ok: false, block: 'no-variables' };
 
   const lists = new Map<string, string[]>(
-    names.map((n) => [n, parseValueLines(rawValues[n] ?? '')]),
+    names.map((n) => {
+      const lines = parseValueLines(rawValues[n] ?? '');
+      const size = permutations[n];
+      return [n, size ? groupValues(lines, size) : lines];
+    }),
   );
 
   const rowCount = Math.max(0, ...[...lists.values()].map((l) => l.length));
@@ -81,10 +91,13 @@ export function generatePrompts(
 export function projectedRowCount(
   template: string,
   rawValues: Record<string, string>,
+  permutations: Record<string, number> = {},
 ): number {
-  const lengths = detectVariables(template).map(
-    (n) => parseValueLines(rawValues[n] ?? '').length,
-  );
+  const lengths = detectVariables(template).map((n) => {
+    const lines = parseValueLines(rawValues[n] ?? '');
+    const size = permutations[n];
+    return size ? groupValues(lines, size).length : lines.length;
+  });
   return Math.max(0, ...lengths);
 }
 

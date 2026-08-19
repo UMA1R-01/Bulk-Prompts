@@ -120,6 +120,7 @@ export function GeneratorView({
                     count={g.counts[name] ?? 0}
                     runLength={g.rows}
                     collapsed={!!g.snap.collapsed[name]}
+                    permutationSize={g.snap.permutations[name]}
                     onChange={(raw) => g.setValues(name, raw)}
                     onToggle={() => g.toggleCollapsed(name)}
                     onShuffle={() => g.shuffle(name)}
@@ -128,6 +129,8 @@ export function GeneratorView({
                     onReplaceRange={(start, end, replace) =>
                       g.replaceRangeIn(name, start, end, replace)
                     }
+                    onPermutationToggle={() => g.togglePermutation(name)}
+                    onPermutationSizeChange={(size) => g.setPermutationSize(name, size)}
                     onNotice={onNotice}
                   />
                 ))}

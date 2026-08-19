@@ -14,6 +14,8 @@ export interface GeneratorSnapshot {
   values: Record<string, string>;
   collapsed: Record<string, boolean>;
   autoDetect: boolean;
+  /** Variables with permutation grouping on, keyed to their group size. Absent = off. */
+  permutations: Record<string, number>;
 }
 
 const EMPTY: GeneratorSnapshot = {
@@ -21,6 +23,7 @@ const EMPTY: GeneratorSnapshot = {
   values: {},
   collapsed: {},
   autoDetect: true,
+  permutations: {},
 };
 
 function initial(): GeneratorSnapshot {
@@ -29,8 +32,12 @@ function initial(): GeneratorSnapshot {
     values: load<Record<string, string>>(K.genValues, {}),
     collapsed: load<Record<string, boolean>>(K.genCollapsed, {}),
     autoDetect: load(K.genAutoDetect, true),
+    permutations: load<Record<string, number>>(K.genPermutations, {}),
   };
 }
+
+/** Default group size a variable gets the moment its Permutation toggle turns on. */
+const DEFAULT_GROUP_SIZE = 2;
 
 const BLOCK_MESSAGE: Record<GenerateBlock, string> = {
   'empty-template': 'Write a template first — there is nothing to generate from.',
@@ -71,6 +78,7 @@ export function useGenerator() {
     save(K.genValues, s.values);
     save(K.genCollapsed, s.collapsed);
     save(K.genAutoDetect, s.autoDetect);
+    save(K.genPermutations, s.permutations);
   }, []);
 
   const apply = useCallback(
@@ -127,11 +135,19 @@ export function useGenerator() {
 
   const variables = detected;
 
+  // A permutation-enabled variable contributes its *group* count here, not
+  // its raw line count — from generation's point of view a group of values
+  // is one value, so everything downstream (rows, driver, FillBar, "repeats
+  // last") should see it that way too.
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const v of variables) out[v] = parseValueLines(snap.values[v] ?? '').length;
+    for (const v of variables) {
+      const n = parseValueLines(snap.values[v] ?? '').length;
+      const size = snap.permutations[v];
+      out[v] = size && size > 1 && n > 0 ? Math.ceil(n / size) : n;
+    }
     return out;
-  }, [variables, snap.values]);
+  }, [variables, snap.values, snap.permutations]);
 
   // Longest list among the *displayed* variables. Deliberately not derived
   // from the live template — when auto-detect is off this is meant to stay
@@ -152,10 +168,19 @@ export function useGenerator() {
 
   const readyCount = variables.filter((v) => counts[v] > 0).length;
 
-  function pruneCollapsed(keep: Set<string>) {
-    const entries = Object.entries(snap.collapsed).filter(([k]) => keep.has(k));
-    if (entries.length !== Object.keys(snap.collapsed).length) {
-      apply({ ...snap, collapsed: Object.fromEntries(entries) });
+  /** Drops collapsed/permutation entries for variables detectNow() no longer finds. */
+  function pruneStale(keep: Set<string>) {
+    const collapsedEntries = Object.entries(snap.collapsed).filter(([k]) => keep.has(k));
+    const permutationEntries = Object.entries(snap.permutations).filter(([k]) => keep.has(k));
+    if (
+      collapsedEntries.length !== Object.keys(snap.collapsed).length ||
+      permutationEntries.length !== Object.keys(snap.permutations).length
+    ) {
+      apply({
+        ...snap,
+        collapsed: Object.fromEntries(collapsedEntries),
+        permutations: Object.fromEntries(permutationEntries),
+      });
     }
   }
 
@@ -240,7 +265,31 @@ export function useGenerator() {
           ? 'No [VARIABLES] found. Wrap a word in square brackets, like [SUBJECT].'
           : null,
       );
-      pruneCollapsed(new Set(next));
+      pruneStale(new Set(next));
+    },
+
+    /**
+     * Turns a variable's Permutation grouping on or off. A behavior toggle,
+     * not a content edit — goes through apply(), the same non-undoable path
+     * as auto-detect and collapse, since flipping it back is one click, not
+     * a history entry.
+     */
+    togglePermutation: (name: string) => {
+      const next = { ...snap.permutations };
+      if (next[name]) {
+        delete next[name];
+      } else {
+        next[name] = DEFAULT_GROUP_SIZE;
+      }
+      apply({ ...snap, permutations: next });
+    },
+
+    /** Sets the group size for a variable that already has Permutation on. */
+    setPermutationSize: (name: string, size: number) => {
+      if (!Number.isFinite(size)) return;
+      const clamped = Math.max(2, Math.floor(size));
+      if (snap.permutations[name] === clamped) return;
+      apply({ ...snap, permutations: { ...snap.permutations, [name]: clamped } });
     },
 
     /**
@@ -275,7 +324,7 @@ export function useGenerator() {
       // Always re-resolved from the live template, so editing it after
       // detection can never break generation — independent of the detected/
       // displayed list above, by design.
-      const outcome = generatePrompts(snap.template, snap.values);
+      const outcome = generatePrompts(snap.template, snap.values, snap.permutations);
       if (!outcome.ok) {
         setNotice(BLOCK_MESSAGE[outcome.block]);
         setOutput([]);
