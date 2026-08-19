@@ -29,6 +29,7 @@ Generating fifty variations of the same prompt by hand is slow, and routing each
 - **Two tools, one shared shell.** Generate turns one template into many prompts; Extract runs the same idea backward. Each has its own undo history and local storage, switchable with one click.
 - **Spreadsheet-friendly input.** Every variable's values are a plain textarea, one value per line, so a column pasted straight out of a spreadsheet works with no reformatting.
 - **Uneven lists just work.** Row count follows the longest variable's list; shorter lists repeat their own last value to fill the rest, instead of forcing every column to the same length.
+- **Permutation grouping.** Flip a variable's Permutation toggle and pick a group size, and its list stops filling one row at a time — it chunks into consecutive `{a, b, c}`-style groups, one group per row, so a long list of tags or subjects can drive a handful of combined prompts instead of dozens of single ones.
 - **Reverses itself.** Give Extract the template plus a batch of prompts someone already wrote, and it recovers the values that produced them, flagging genuinely ambiguous cases (like `[FIRST][LAST]` with no separator between them) instead of silently guessing.
 - **Rich-text copy.** Copy with bold, italic, or underline on the variable portions, so a pasted prompt stays visually distinct in any rich-text destination, and falls back to clean plain text everywhere else.
 - **Full undo history.** A 50-deep undo stack per tool, with every bulk or destructive action (clear, shuffle, reset, bulk replace) captured as a clean, one-step undo point.
@@ -61,6 +62,36 @@ A portrait of a violinist wearing a linen shirt, charcoal sketch style.
 Extract does the same work in reverse: give it the template and those three finished lines, and it hands back the SUBJECT, CLOTHING, and STYLE columns.
 
 ![Extract recovering SUBJECT, CLOTHING, and STYLE from three finished prompts](docs/extractor.png)
+
+### Permutation grouping
+
+Turn on a variable's **Permutation** toggle and pick a group size, and that variable stops filling one row at a time — its list chunks into consecutive groups instead, each substituted as a single `{a, b, c}`-style value. Everything downstream (row count, the "longest list" driver, repeats-last) treats a group exactly like any other value.
+
+**Template**
+
+```
+A group portrait of [SUBJECTS].
+```
+
+**SUBJECTS**, six values, Permutation on with a group size of 3
+
+```
+a fox
+an astronaut
+a violinist
+a beekeeper
+a locksmith
+a tightrope walker
+```
+
+**Generates**
+
+```
+A group portrait of {a fox, an astronaut, a violinist}.
+A group portrait of {a beekeeper, a locksmith, a tightrope walker}.
+```
+
+![SUBJECTS variable with Permutation on, grouping six values into two rows of three](docs/permutation.png)
 
 ## Desktop vs. browser
 
