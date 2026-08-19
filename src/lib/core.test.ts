@@ -98,8 +98,12 @@ describe('permutation grouping', () => {
     ]);
   });
 
-  it('a trailing partial group still gets its own braced row', () => {
-    expect(groupValues(['a', 'b', 'c'], 2)).toEqual(['{a, b}', '{c}']);
+  it('a trailing partial group still gets its own row', () => {
+    expect(groupValues(['a', 'b', 'c'], 2)).toEqual(['{a, b}', 'c']);
+  });
+
+  it('a lone trailing value skips the braces — nothing left to group it with', () => {
+    expect(groupValues(['a', 'b', 'c', 'd', 'e'], 2)).toEqual(['{a, b}', '{c, d}', 'e']);
   });
 
   it('size <= 1 is a no-op — no grouping, no braces', () => {

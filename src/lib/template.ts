@@ -88,12 +88,17 @@ export function parseValueLines(raw: string): string[] {
  * toggle: it turns a long value list into a handful of combined rows without
  * a second bracket syntax in the template itself. `size` <= 1 is a no-op,
  * since a group of one value is indistinguishable from not grouping at all.
+ *
+ * A trailing group left with only one value (list length not a multiple of
+ * `size`) skips the braces too — there is nothing left in that group to
+ * permute against, so it is just a value again, not a set.
  */
 export function groupValues(lines: string[], size: number): string[] {
   if (size <= 1) return lines;
   const out: string[] = [];
   for (let i = 0; i < lines.length; i += size) {
-    out.push(`{${lines.slice(i, i + size).join(', ')}}`);
+    const chunk = lines.slice(i, i + size);
+    out.push(chunk.length > 1 ? `{${chunk.join(', ')}}` : chunk[0]);
   }
   return out;
 }
